@@ -10,15 +10,17 @@ SEED = 70
 np.random.seed(SEED)
 
 # -----------------------------
-# Grid settings
+# Environment configuration
 # -----------------------------
 GRID_SIZE = 30
 
 START = np.array([1.0, 1.0])
 GOAL = np.array([28.0, 28.0])
 
-# Number of intermediate points in each particle's path
 N_WAYPOINTS = 12
+
+# Path-planning environment
+ENVIRONMENT_NAME = "30x30 Obstacle Grid"
 
 # -----------------------------
 # Generate obstacles
@@ -219,6 +221,7 @@ print(f"Seed / Roll Number : {SEED}")
 print(f"Particles           : {NUM_PARTICLES}")
 print(f"Iterations          : {MAX_ITERATIONS}")
 print(f"Waypoints           : {N_WAYPOINTS}")
+print(f"Environment         : {ENVIRONMENT_NAME}")
 print(f"Path Length         : {path_length(best_path):.2f}")
 print(f"Collision Free      : {not path_collision(best_path)}")
 print("=" * 50)
