@@ -24,7 +24,6 @@ def generate_problem():
     and goal point using the roll number as the seed.
     """
 
-    # Grid size is generated from the seed
     grid_size = random.randint(20, 30)
 
     all_cells = [
@@ -117,19 +116,23 @@ def segment_collision(point1, point2):
     """
     Check whether a line segment crosses an obstacle.
 
-    The segment is sampled at grid-level resolution, making
-    collision checking much faster than checking every
-    obstacle distance separately.
+    The segment is sampled at grid-level resolution.
     """
 
-    distance = np.linalg.norm(point2 - point1)
+    distance = np.linalg.norm(
+        point2 - point1
+    )
 
     steps = max(
         int(distance * 2),
         2
     )
 
-    for t in np.linspace(0, 1, steps + 1):
+    for t in np.linspace(
+        0,
+        1,
+        steps + 1
+    ):
 
         point = (
             point1
@@ -157,7 +160,68 @@ def path_collision(path):
 
 
 # ============================================================
-# 4. PATH LENGTH
+# 4. CLEARANCE PENALTY
+# ============================================================
+
+def clearance_penalty(path):
+    """
+    Penalize paths that pass too close to obstacles.
+
+    Collision-free paths with better obstacle clearance
+    receive a lower penalty.
+    """
+
+    SAFE_DISTANCE = 1.5
+    penalty = 0.0
+
+    for i in range(len(path) - 1):
+
+        point1 = path[i]
+        point2 = path[i + 1]
+
+        distance = np.linalg.norm(
+            point2 - point1
+        )
+
+        steps = max(
+            int(distance * 3),
+            3
+        )
+
+        for t in np.linspace(
+            0,
+            1,
+            steps + 1
+        ):
+
+            point = (
+                point1
+                + t * (point2 - point1)
+            )
+
+            for obstacle in OBSTACLES:
+
+                obstacle_point = np.array(
+                    obstacle,
+                    dtype=float
+                )
+
+                obstacle_distance = np.linalg.norm(
+                    point - obstacle_point
+                )
+
+                if obstacle_distance < SAFE_DISTANCE:
+
+                    penalty += (
+                        SAFE_DISTANCE
+                        - obstacle_distance
+                    ) ** 2
+
+    return penalty
+
+
+# ============================================================
+# 5. PATH LENGTH
 # ============================================================
 
 def path_length(path):
@@ -177,14 +241,16 @@ def path_length(path):
 
 
 # ============================================================
-# 5. FITNESS FUNCTION
+# 6. FITNESS FUNCTION
 # ============================================================
 
 def fitness(path):
     """
     Lower fitness is better.
 
-    Collision-free paths are strongly preferred.
+    Collision paths receive a large penalty.
+    Paths that pass very close to obstacles receive
+    a small additional penalty.
     """
 
     length = path_length(path)
@@ -192,11 +258,28 @@ def fitness(path):
     if path_collision(path):
         return length + 1000
 
-    return length
+    # Simple clearance check using path points
+    penalty = 0
+
+    for point in path:
+
+        x = int(round(point[0]))
+        y = int(round(point[1]))
+
+        for dx, dy in [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1),           (0, 1),
+            (1, -1),  (1, 0),  (1, 1)
+        ]:
+
+            if (x + dx, y + dy) in OBSTACLES:
+                penalty += 2
+
+    return length + penalty
 
 
 # ============================================================
-# 6. INITIALIZE PARTICLES
+# 7. INITIALIZE PARTICLES
 # ============================================================
 
 def initialize_particles():
@@ -246,7 +329,7 @@ def initialize_particles():
 
 
 # ============================================================
-# 7. PSO PARAMETERS
+# 8. PSO PARAMETERS
 # ============================================================
 
 NUM_PARTICLES = 40
@@ -257,7 +340,7 @@ SOCIAL = 1.6
 
 
 # ============================================================
-# 8. PARTICLE SWARM OPTIMIZATION
+# 9. PARTICLE SWARM OPTIMIZATION
 # ============================================================
 
 def run_pso():
@@ -488,7 +571,7 @@ def run_pso():
 
 
 # ============================================================
-# 9. SIMPLIFY FINAL PATH
+# 10. SIMPLIFY FINAL PATH
 # ============================================================
 
 def simplify_path(path):
@@ -535,7 +618,7 @@ def simplify_path(path):
 
 
 # ============================================================
-# 10. RUN PSO
+# 11. RUN PSO
 # ============================================================
 
 print("Running PSO path planning...")
@@ -543,6 +626,7 @@ print("Please wait...")
 
 best_path, fitness_history = run_pso()
 
+# Simplify the final path
 best_path = simplify_path(
     best_path
 )
@@ -557,7 +641,7 @@ collision_free = not path_collision(
 
 
 # ============================================================
-# 11. CREATE RESULTS DIRECTORY
+# 12. CREATE RESULTS DIRECTORY
 # ============================================================
 
 os.makedirs(
@@ -567,7 +651,7 @@ os.makedirs(
 
 
 # ============================================================
-# 12. PRINT RESULTS
+# 13. PRINT RESULTS
 # ============================================================
 
 print()
@@ -615,6 +699,11 @@ print(
 )
 
 print(
+    f"Final Path Points  : "
+    f"{len(best_path)}"
+)
+
+print(
     f"Final Path Length  : "
     f"{final_length:.2f}"
 )
@@ -638,7 +727,7 @@ for point in best_path:
 
 
 # ============================================================
-# 13. FINAL PATH VISUALIZATION
+# 14. FINAL PATH VISUALIZATION
 # ============================================================
 
 fig, ax = plt.subplots(
@@ -762,7 +851,7 @@ plt.show()
 
 
 # ============================================================
-# 14. CONVERGENCE GRAPH
+# 15. CONVERGENCE GRAPH
 # ============================================================
 
 plt.figure(
@@ -799,3 +888,30 @@ plt.savefig(
 )
 
 plt.show()
+
+
+# ============================================================
+# 16. FINAL VERIFICATION
+# ============================================================
+
+print()
+print("=" * 65)
+print("FINAL VERIFICATION")
+print("=" * 65)
+
+print(
+    f"Path collision check : "
+    f"{'PASSED' if not path_collision(best_path) else 'FAILED'}"
+)
+
+print(
+    f"Path image           : "
+    f"{'CREATED' if os.path.exists('results/path.png') else 'MISSING'}"
+)
+
+print(
+    f"Convergence graph    : "
+    f"{'CREATED' if os.path.exists('results/convergence.png') else 'MISSING'}"
+)
+
+print("=" * 65)
